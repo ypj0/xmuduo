@@ -1,0 +1,9 @@
+# Vendored Muduo source checkout
+/muduo/
+
+# CMake build output
+/build/
+/cmake-build-*/
+
+# clangd cache
+/.cache/
