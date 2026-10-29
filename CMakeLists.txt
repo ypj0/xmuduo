@@ -25,13 +25,9 @@ if(NOT XMUDUO_HAS_CHRONO_TIME_ZONES)
 endif()
 
 add_library(xmuduo STATIC
-    src/Channel.cc
-    src/EventLoop.cc
-    src/InetAddress.cc
-    src/TcpServer.cc
+    src/Logger.cc
     src/Timestamp.cc
     src/TimeZone.cc
-    src/logger.cc
 )
 target_compile_features(xmuduo PUBLIC cxx_std_20)
 target_link_libraries(xmuduo PUBLIC Threads::Threads)

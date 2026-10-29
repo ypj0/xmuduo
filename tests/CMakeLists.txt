@@ -1,4 +1,4 @@
-foreach(component IN ITEMS Timestamp TimeZone)
+foreach(component IN ITEMS Timestamp TimeZone LogLevel LogBuffer Logger)
     add_executable(${component}_test ${component}_test.cc)
     target_link_libraries(${component}_test PRIVATE xmuduo)
     add_test(NAME ${component} COMMAND ${component}_test)
