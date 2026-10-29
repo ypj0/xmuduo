@@ -8,7 +8,6 @@
 #include <format>
 #include <utility>
 #include <stdexcept>
-#include <stdexcept>
 
 class Logger {
 public:
@@ -46,13 +45,18 @@ public:
             return true;
         }
 
-        LogBuffer<> body;
-        if(!body.appendFormat(format, std::forward<Args>(args)...)) {
+        LogBuffer<> buffer;
+        if (!appendPrefix(buffer, level) ||
+            !buffer.appendFormat(format, std::forward<Args>(args)...) ||
+            !appendSuffix(buffer, location)) {
             return false;
         }
-
-        return log(level, body.view(), location);
+        write(buffer.view());
+        return true;
     }
+private:
+    static bool appendPrefix(LogBuffer<>& buffer, LogLevel level);
+    static bool appendSuffix(LogBuffer<>& buffer, std::source_location location);
 };
 
 // The outer check keeps formatting arguments unevaluated for disabled levels.

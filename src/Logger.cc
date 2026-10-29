@@ -3,10 +3,8 @@
 #include <atomic>
 #include <cstdio>
 #include <mutex>
-#include <source_location>
 #include <stdexcept>
 #include <string_view>
-#include <utility>
 #include "LogBuffer.h"
 #include "Timestamp.h"
 
@@ -71,19 +69,25 @@ bool Logger::log(LogLevel level, std::string_view message, std::source_location 
         return true;
     }
     LogBuffer<> buffer;
-    // [UTC时间] [等级] 正文 - 源文件：行号
-    const bool success = buffer.appendFormat(
-        "[{}] [{}] {} - {}:{}\n",
-        Timestamp::now().toUtcString(),
-        LogLevelName(level),
-        message,
-        location.file_name(),
-        location.line());
-
-    if(!success) {
+    if (!appendPrefix(buffer, level) ||
+        !buffer.append(message) ||
+        !appendSuffix(buffer, location)) {
         return false;
     }
-
     write(buffer.view());
     return true;
+}
+
+bool Logger::appendPrefix(LogBuffer<>& buffer, LogLevel level) {
+    return buffer.appendFormat(
+        "[{}] [{}] ",
+        Timestamp::now().toUtcString(),
+        LogLevelName(level));
+}
+
+bool Logger::appendSuffix(LogBuffer<>& buffer, std::source_location location) {
+    return buffer.appendFormat(
+        " - {}:{}\n",
+        location.file_name(),
+        location.line());
 }

@@ -16,7 +16,7 @@
 
 `log(level, message, location)` 组装 `[UTC时间] [等级] 正文 - 文件:行号\n`，默认位置来自调用处的 `std::source_location`。
 
-`logf(level, location, format, args...)` 先在 [LogBuffer](logbuffer.md) 中格式化正文，再调用 `log()`，须显式传递源码位置。
+`logf(level, location, format, args...)` 在同一个 [LogBuffer](logbuffer.md) 中依次追加前缀、格式化正文和后缀，须显式传递源码位置。`log()` 使用相同的前后缀辅助函数，以原始字节追加正文。只有全部追加成功才输出，任何一步容量不足都不提交残缺日志。
 
 二者被过滤时返回 true，容量不足时返回 false 且不输出残缺记录，成功提交时返回 true。格式化和输出异常向上传播。完整记录容量为 4096 字节，包含前缀、正文和后缀。正文中的换行不转义，因此一次提交可能包含多行文本。
 
@@ -35,6 +35,6 @@ LOG_ERROR("request failed: code={}", 7);
 
 宏在容量不足时抛出 `std::length_error`，其他异常继续传播。当前不提供致命日志宏；直接传入 fatal 等级也不会终止进程。
 
-当前 logf 使用正文与完整记录两个缓冲区，存在正文复制及重复等级检查；后续将优化为单缓冲区。文件输出、滚动与异步后端尚未实现。
+当前每次 log/logf 调用仅使用一个日志缓冲区，logf 不再通过 log 复制正文。宏与日志入口仍各自检查等级；后续再调整过滤路径。时间字符串仍由 toUtcString() 创建，不承诺零分配。文件输出可使用 [FileSink](filesink.md)，按大小滚动和定时刷新可使用 [RollingFileSink](rollingfilesink.md)，异步队列输出可使用 [AsyncLogSink](asynclogsink.md)。
 
 构建与测试方式见 [构建与测试](build.md)。`tests/Logger_test.cc` 覆盖等级配置、源码位置、格式化、记录容量、输出异常、宏过滤及 if/else 行为。

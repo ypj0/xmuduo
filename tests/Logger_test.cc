@@ -89,6 +89,14 @@ int main() {
         const auto count = capture->messages.size();
         CHECK(!Logger::log(LogLevel::info, exact + 'x', location));
         CHECK(capture->messages.size() == count);
+        // Exercise exact capacity and suffix failure through the template path.
+        CHECK(Logger::logf(LogLevel::info, location, "{}", exact));
+        CHECK(capture->messages.back().size() == LogBuffer<>::capacity());
+        const auto formattedBoundaryCount = capture->messages.size();
+        CHECK(!Logger::logf(LogLevel::info, location, "{}", exact + 'x'));
+        CHECK(capture->messages.size() == formattedBoundaryCount);
+        CHECK(Logger::log(LogLevel::info, "literal {} {:broken}", location));
+        CHECK(capture->messages.back().find("] [INFO] literal {} {:broken} - ") != std::string::npos);
         CHECK(Logger::log(LogLevel::info, "after overflow", location));
         CHECK(Logger::log(LogLevel::info, std::string_view{"a\0b", 3}, location));
         CHECK(capture->messages.back().find(std::string{"a\0b", 3}) != std::string::npos);
@@ -115,7 +123,7 @@ int main() {
         const auto formattedCount = capture->messages.size();
         CHECK(!Logger::logf(LogLevel::info, formattedLocation,
                             "{}", std::string(LogBuffer<>::capacity() + 1, 'x')));
-        // The body fits, but leaves no space for the log header/footer.
+        // A capacity-sized body cannot fit alongside the record metadata.
         CHECK(!Logger::logf(LogLevel::info, formattedLocation,
                             "{}", std::string(LogBuffer<>::capacity(), 'x')));
         CHECK(capture->messages.size() == formattedCount);

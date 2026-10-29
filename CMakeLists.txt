@@ -25,6 +25,9 @@ if(NOT XMUDUO_HAS_CHRONO_TIME_ZONES)
 endif()
 
 add_library(xmuduo STATIC
+    src/AsyncLogSink.cc
+    src/FileSink.cc
+    src/RollingFileSink.cc
     src/Logger.cc
     src/Timestamp.cc
     src/TimeZone.cc
