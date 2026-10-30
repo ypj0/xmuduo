@@ -1,6 +1,6 @@
 # Reactor：注册阶段
 
-当前完成事件注册及 `epoll_wait → EventLoop::runOnce → Channel::handleEvent` 分发链路。尚未实现持续循环、跨线程唤醒或回调生命周期保护。
+当前完成事件注册及 `epoll_wait → EventLoop::runOnce → Channel::handleEvent` 分发链路。现已支持持续循环、任务队列和跨线程唤醒；业务对象生命周期仍由调用者管理。
 
 ## 职责和所有权
 
@@ -45,7 +45,7 @@ Channel_test 使用真实 epoll 注册，覆盖 ADD/MOD/DEL、重复开关、重
 
 ## 等待与分发
 
-现在已实现 `runOnce(milliseconds)`：检查所属线程，调用 epoll_wait，遍历本轮 ActiveEvent 并调用 Channel::handleEvent。尚无持续 loop、quit、跨线程唤醒或任务队列。超时允许 0 到 INT_MAX 毫秒，0 表示立即检查；负数或超范围抛 invalid_argument。EINTR 作为本轮无事件返回，其他等待错误抛 system_error。
+现在已实现 `runOnce(milliseconds)`：检查所属线程，调用 epoll_wait，遍历本轮 ActiveEvent 并调用 Channel::handleEvent。持续循环与任务接口见文末。超时允许 0 到 INT_MAX 毫秒，0 表示立即检查；负数或超范围抛 invalid_argument。EINTR 作为本轮无事件返回，其他等待错误抛 system_error。
 
 Poller 的事件 vector 初始有 16 个元素，按注册数量在等待前扩容并复用；输出 vector 也在等待前预留容量，避免已经取到事件后为存储结果分配失败。ReadyEvents 作为参数传入 Channel，不与读写兴趣混用；使用 readable/writable/peerClosed/hangup/error 表达就绪结果。
 
@@ -56,3 +56,15 @@ runOnce 禁止重入；回调抛出异常时停止本轮分发、清空事件列
 生命周期约束：分发期间 removeChannel 会抛 logic_error，即使已 disableAll 也不能注销。回调可以修改兴趣，但不能销毁任何 Channel、关闭相关 fd、销毁 EventLoop，或替换正在执行的回调函数；应等 runOnce 返回后再注销和销毁。直接调用 handleEvent 也须遵守这些约束。当前没有自动延迟销毁和 weak_ptr tie 保护，禁止注销并不能阻止调用者直接 delete，不能将其当成完整的生命周期保障。
 
 EventLoop_test 使用真实 eventfd 验证读写分发、读取后不重复通知、disableAll、重新注册、异常恢复、错误线程、重入与注销限制、超时参数及 40 个就绪 fd；另外用合成事件验证错误/挂断/半关闭的分发顺序。
+
+## 持续循环、任务与唤醒
+
+`loop()` 在所属线程重复执行单轮处理，默认每轮最多等待 10 秒。`quit()` 可跨线程调用，设置原子退出标志并写 eventfd，提前唤醒 epoll。退出不打断当前回调，完成当前轮次后检查退出；标志不会自动清零，不支持 quit 后重启 loop。退出不保证排空持续提交的任务。runOnce 仍可显式执行单轮，不受退出标志控制。
+
+`queueInLoop(std::function<void()>)` 始终排队并唤醒；`runInLoop` 在所属线程立即执行，否则排队。空任务抛 invalid_argument。队列由 mutex 保护，执行前交换到局部 vector，释放锁后执行。任务里再次排队的任务留到下一轮。任务异常保存第一个，继续执行本批其他任务后重抛；I/O 回调异常则中止本轮，待执行队列保留。两类异常都恢复运行标志，向 loop/runOnce 调用者传播。
+
+eventfd 由私有 RAII 对象管理，使用 NONBLOCK 和 CLOEXEC，内部 Channel 订阅读事件。读写 EINTR 重试，EAGAIN 表示通知已存在或已消费，其他错误抛 system_error。每次提交均写入通知，不做通知合并优化；通知计数不决定任务数量。如果入队后唤醒失败，任务仍在队列，不能盲目重新提交。
+
+runningOnce 覆盖等待、I/O 分发和任务执行三个阶段，looping 覆盖持续循环；两者阻止任务或回调重入。dispatching 只覆盖 I/O 阶段，任务阶段可 disableAll/remove 并销毁 Channel，前提是没有其他待执行任务再访问它。没有 weak_ptr tie，也没有自动管理业务对象生命周期。
+
+EventLoop 必须在所属线程、循环退出后销毁；销毁前停止所有外部提交者，外部 Channel 应先注销销毁。跨线程 quit 调用期间也必须保持 EventLoop 存活，退出并不等于调用者已全部返回。析构先关闭 epoll，再自动释放内部 Channel 和 eventfd；未执行任务直接销毁，不隐式执行。任务队列当前无容量上限。
