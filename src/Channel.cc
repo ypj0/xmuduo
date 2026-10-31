@@ -10,6 +10,7 @@ Channel::Channel(EventLoop& owner, int fd)
     }
 }
 
+// 委托给事件循环
 void Channel::update() {
     owner_.updateChannel(*this);
 }
@@ -18,6 +19,7 @@ void Channel::remove() {
     owner_.removeChannel(*this);
 }
 
+// 处理事件分发
 void Channel::handleEvent(ReadyEvents events) {
     owner_.assertInLoopThread();
     // Invoke stored functions so mutable captures retain state between events.

@@ -25,6 +25,7 @@ if(NOT XMUDUO_HAS_CHRONO_TIME_ZONES)
 endif()
 
 add_library(xmuduo STATIC
+    src/Acceptor.cc
     src/Channel.cc
     src/EventLoop.cc
     src/EPollPoller.cc

@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 namespace {
+    // 将Channel的感兴趣事件翻译为epoll的事件掩码
     epoll_event makeEvent(Channel& channel) {
         epoll_event event{};
 
@@ -23,6 +24,7 @@ namespace {
         }
 
         event.data.ptr = &channel;
+        // Channel里已经携带了fd,回调，缓冲区等全部上下文，无需用fd查map
 
         return event;
     }

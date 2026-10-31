@@ -9,6 +9,8 @@ class EventLoop;
 
 class Channel : private noncopyable{
 public:
+
+    // 对应就绪事件
     struct ReadyEvents {
         bool readable = false;
         bool writable = false;
@@ -70,12 +72,14 @@ public:
 private:
     void update();
 
-    EventLoop& owner_;
-    const int fd_;
+    EventLoop& owner_;  // 所属的事件循环
+    const int fd_;      // Channel绑定的fd
 
+    // 意愿状态位，表达希望监听的事件，而不是事件注册的事件
     bool reading_ = false;
     bool writing_ = false;
 
+    // 回调函数
     EventCallback readCallback_;
     EventCallback writeCallback_;
     EventCallback errorCallback_;
