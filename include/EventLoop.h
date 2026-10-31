@@ -34,6 +34,10 @@ public:
     bool isInLoopThread() const noexcept;
 
     void assertInLoopThread() const;
+    [[nodiscard]] bool isDispatching() const {
+        assertInLoopThread();
+        return dispatching_;
+    }
 
 private:
     class WakeupFd;

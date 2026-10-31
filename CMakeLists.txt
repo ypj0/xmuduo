@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(xmuduo VERSION 0.1.0 LANGUAGES CXX)
 
 option(XMUDUO_ENABLE_DEBUG_LOG "Enable debug logging" OFF)
+option(XMUDUO_BUILD_EXAMPLES "Build runnable examples" OFF)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,6 +26,9 @@ if(NOT XMUDUO_HAS_CHRONO_TIME_ZONES)
 endif()
 
 add_library(xmuduo STATIC
+    src/TcpServer.cc
+    src/TcpConnection.cc
+    src/Buffer.cc
     src/Acceptor.cc
     src/Channel.cc
     src/EventLoop.cc
@@ -48,4 +52,7 @@ target_include_directories(xmuduo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)
+endif()
+if(XMUDUO_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
